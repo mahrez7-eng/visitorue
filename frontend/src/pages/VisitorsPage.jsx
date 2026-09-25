@@ -184,7 +184,19 @@ export default function VisitorsPage() {
       ) : (
         <div className="visitors-list">
           {filteredVisitors.map(visitor => (
-            <div key={visitor.id} className={`visitor-card ${!visitor.checkOutDate ? 'active' : 'checked-out'}`}>
+            <div
+              key={visitor.id}
+              className={`visitor-card ${!visitor.checkOutDate ? 'active' : 'checked-out'}`}
+              onClick={() => setSelectedVisitor(selectedVisitor?.id === visitor.id ? null : visitor)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault();
+                  setSelectedVisitor(selectedVisitor?.id === visitor.id ? null : visitor);
+                }
+              }}
+            >
               <div className="visitor-card-header">
                 <div className="visitor-name-section">
                   <h3>{visitor.fullName}</h3>
@@ -192,12 +204,9 @@ export default function VisitorsPage() {
                     {!visitor.checkOutDate ? '✅ Active' : '⏸️ Checked Out'}
                   </span>
                 </div>
-                <button
-                  className="details-btn"
-                  onClick={() => setSelectedVisitor(selectedVisitor?.id === visitor.id ? null : visitor)}
-                >
+                <span className="details-indicator" aria-hidden="true">
                   {selectedVisitor?.id === visitor.id ? '▼' : '▶'}
-                </button>
+                </span>
               </div>
 
               <div className="visitor-info-brief">
@@ -263,14 +272,20 @@ export default function VisitorsPage() {
                     {!visitor.checkOutDate && (
                       <button
                         className="btn-checkout"
-                        onClick={() => handleCheckOut(visitor.id)}
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          handleCheckOut(visitor.id);
+                        }}
                       >
                         ✔️ Mark as Checked Out
                       </button>
                     )}
                     <button
                       className="btn-delete"
-                      onClick={() => handleDelete(visitor.id)}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        handleDelete(visitor.id);
+                      }}
                     >
                       🗑️ Delete
                     </button>
