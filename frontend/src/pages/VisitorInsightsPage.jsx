@@ -18,6 +18,12 @@ function getDateKey(date) {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Dar_es_Salaam' }).format(date);
 }
 
+function getDateKeyDaysAgo(dateKey, daysAgo) {
+  const date = new Date(`${dateKey}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - daysAgo);
+  return date.toISOString().slice(0, 10);
+}
+
 function getWeekday(value) {
   const date = parseDateTime(value);
   if (Number.isNaN(date.getTime())) return 'Unknown';
@@ -41,21 +47,45 @@ export default function VisitorInsightsPage() {
   }, []);
 
   const now = new Date();
-  const cutoff = period === 'all' ? null : new Date(now.getTime() - Number(period) * 24 * 60 * 60 * 1000);
+  const todayKey = getDateKey(now);
+  const periodDays = period === 'all' ? null : Number(period);
+  const startKey = periodDays ? getDateKeyDaysAgo(todayKey, periodDays - 1) : null;
   const visibleVisitors = visitors.filter((visitor) => {
-    if (!cutoff) return true;
+    if (!startKey) return true;
     const date = parseDateTime(visitor.checkInDate || visitor.visitorDate);
-    return !Number.isNaN(date.getTime()) && date >= cutoff;
+    if (Number.isNaN(date.getTime())) return false;
+    const dateKey = getDateKey(date);
+    return dateKey >= startKey && dateKey <= todayKey;
   });
 
   const activeVisitors = visibleVisitors.filter((visitor) => !visitor.checkOutDate).length;
   const checkedOutVisitors = visibleVisitors.length - activeVisitors;
   const uniqueCompanies = new Set(visibleVisitors.map((visitor) => visitor.company).filter(Boolean)).size;
-  const weekdayCounts = WEEKDAYS.map((day) => ({
-    day,
-    count: visibleVisitors.filter((visitor) => getWeekday(visitor.checkInDate || visitor.visitorDate) === day).length,
-  }));
-  const maxWeekdayCount = Math.max(...weekdayCounts.map(({ count }) => count), 1);
+  const rhythmCounts = periodDays
+    ? Array.from({ length: periodDays }, (_, index) => {
+        const dateKey = getDateKeyDaysAgo(todayKey, periodDays - index - 1);
+        const date = new Date(`${dateKey}T00:00:00Z`);
+        const weekday = WEEKDAYS[(date.getUTCDay() + 6) % 7];
+        const count = visibleVisitors.filter((visitor) => {
+          const visitorDate = parseDateTime(visitor.checkInDate || visitor.visitorDate);
+          return !Number.isNaN(visitorDate.getTime()) && getDateKey(visitorDate) === dateKey;
+        }).length;
+        return {
+          key: dateKey,
+          label: periodDays === 7 || index % 5 === 0 || index === periodDays - 1
+            ? (periodDays === 7 ? weekday.slice(0, 3) : dateKey.slice(8, 10))
+            : '',
+          title: `${weekday}, ${dateKey}`,
+          count,
+        };
+      })
+    : WEEKDAYS.map((day) => ({
+        key: day,
+        label: day.slice(0, 3),
+        title: day,
+        count: visibleVisitors.filter((visitor) => getWeekday(visitor.checkInDate || visitor.visitorDate) === day).length,
+      }));
+  const maxRhythmCount = Math.max(...rhythmCounts.map(({ count }) => count), 1);
 
   const purposeCounts = Object.entries(
     visibleVisitors.reduce((counts, visitor) => {
@@ -65,7 +95,6 @@ export default function VisitorInsightsPage() {
     }, {})
   ).sort(([, firstCount], [, secondCount]) => secondCount - firstCount).slice(0, 4);
 
-  const todayKey = getDateKey(now);
   const todayVisitors = visibleVisitors.filter((visitor) => {
     const date = parseDateTime(visitor.checkInDate || visitor.visitorDate);
     return !Number.isNaN(date.getTime()) && getDateKey(date) === todayKey;
@@ -118,16 +147,18 @@ export default function VisitorInsightsPage() {
           <section className="insights-grid">
             <article className="insights-panel traffic-panel">
               <div className="panel-heading">
-                <div><span className="panel-kicker">Traffic rhythm</span><h2>Visits by weekday</h2></div>
+                <div><span className="panel-kicker">Traffic rhythm</span><h2>{periodDays ? 'Visits by day' : 'Visits by weekday'}</h2></div>
                 <span className="panel-badge">{visibleVisitors.length} total</span>
               </div>
-              <div className="weekday-chart">
-                {weekdayCounts.map(({ day, count }) => (
-                  <div className="weekday-column" key={day}>
-                    <div className="bar-track"><div className="bar-fill" style={{ height: `${(count / maxWeekdayCount) * 100}%` }}><span>{count}</span></div></div>
-                    <span>{day.slice(0, 3)}</span>
+              <div className={periodDays === 30 ? 'rhythm-chart-scroll' : ''}>
+                <div className={`weekday-chart${periodDays === 30 ? ' daily-rhythm-chart' : ''}`}>
+                  {rhythmCounts.map(({ key, label, title, count }) => (
+                  <div className="weekday-column" key={key} title={`${title}: ${count} ${count === 1 ? 'visit' : 'visits'}`}>
+                    <div className="bar-track"><div className="bar-fill" style={{ height: `${(count / maxRhythmCount) * 100}%` }}><span>{count}</span></div></div>
+                    <span>{label}</span>
                   </div>
                 ))}
+                </div>
               </div>
             </article>
 

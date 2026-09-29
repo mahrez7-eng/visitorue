@@ -1,8 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { refreshExperts, createExpert, updateExpert, deleteExpert, refreshVisitors } from '../lib/db';
 import '../styles/DashboardPage.css';
 
 const emptyForm = { id: null, fullname: '', department: '' };
+const EXPERT_COLUMNS = ['Full Name', 'Department'];
+
+async function downloadWorkbook(rows, filename) {
+  const { default: ExcelJS } = await import('exceljs');
+  const workbook = new ExcelJS.Workbook();
+  const worksheet = workbook.addWorksheet('Experts');
+  worksheet.addRow(EXPERT_COLUMNS);
+  rows.forEach((row) => worksheet.addRow(EXPERT_COLUMNS.map((column) => row[column] || '')));
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  const downloadUrl = URL.createObjectURL(new Blob([buffer]));
+  const link = document.createElement('a');
+  link.href = downloadUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(downloadUrl), 1000);
+}
 
 export default function AdminExperts() {
   const [experts, setExperts] = useState([]);
@@ -10,6 +29,8 @@ export default function AdminExperts() {
   const [form, setForm] = useState(emptyForm);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [importing, setImporting] = useState(false);
+  const fileInputRef = useRef(null);
   const editing = !!form.id;
 
   useEffect(() => {
@@ -82,6 +103,75 @@ export default function AdminExperts() {
     }
   }
 
+  function exportExperts() {
+    downloadWorkbook(experts.map((expert) => ({
+      'Full Name': expert.fullname,
+      Department: expert.department || '',
+    })), 'experts.xlsx');
+  }
+
+  async function handleImport(event) {
+    const file = event.target.files?.[0];
+    event.target.value = '';
+    if (!file) return;
+
+    setError('');
+    setSuccess('');
+    setImporting(true);
+
+    try {
+      if (!file.name.toLowerCase().endsWith('.xlsx')) {
+        throw new Error('Please choose an Excel Workbook (.xlsx) file.');
+      }
+
+      const { default: ExcelJS } = await import('exceljs');
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.load(await file.arrayBuffer());
+      const worksheet = workbook.worksheets[0];
+      if (!worksheet) throw new Error('The selected file does not contain a worksheet.');
+
+      const headers = worksheet.getRow(1).values.slice(1).map((value) => String(value || '').trim().toLowerCase());
+      const fullnameColumn = headers.findIndex((header) => ['full name', 'fullname', 'name'].includes(header)) + 1;
+      const departmentColumn = headers.indexOf('department') + 1;
+      if (!fullnameColumn) throw new Error('The selected sheet must have a "Full Name" column.');
+
+      const imported = [];
+      const rowErrors = [];
+
+      for (let rowNumber = 2; rowNumber <= worksheet.rowCount; rowNumber += 1) {
+        const row = worksheet.getRow(rowNumber);
+        const fullname = String(row.getCell(fullnameColumn).text || '').trim();
+        const department = departmentColumn ? String(row.getCell(departmentColumn).text || '').trim() : '';
+
+        if (!fullname && !department) continue;
+        if (!fullname) {
+          rowErrors.push(rowNumber);
+          continue;
+        }
+
+        try {
+          imported.push(await createExpert({ fullname, department }));
+        } catch {
+          rowErrors.push(rowNumber);
+        }
+      }
+
+      if (imported.length > 0) setExperts((previous) => [...previous, ...imported]);
+
+      if (rowErrors.length > 0) {
+        setError(`Imported ${imported.length} expert(s). Could not import spreadsheet row(s): ${rowErrors.join(', ')}.`);
+      } else if (imported.length > 0) {
+        setSuccess(`Imported ${imported.length} expert(s) successfully.`);
+      } else {
+        setError('No experts were imported. Check that the sheet has a "Full Name" column and names are filled in.');
+      }
+    } catch (err) {
+      setError(err.message || 'Unable to read the selected spreadsheet.');
+    } finally {
+      setImporting(false);
+    }
+  }
+
   return (
     <div className="dashboard-container">
       <div className="dashboard-content">
@@ -134,6 +224,22 @@ export default function AdminExperts() {
           <div className="panel-header-row">
             <h2>All Experts</h2>
             <span>{experts.length} Total</span>
+          </div>
+
+          <div className="dashboard-actions expert-import-actions">
+            <button type="button" className="action-btn secondary" onClick={() => fileInputRef.current?.click()} disabled={importing}>
+              {importing ? 'Importing...' : 'Import Excel'}
+            </button>
+            <button type="button" className="action-btn secondary" onClick={exportExperts} disabled={experts.length === 0}>
+              Export Excel
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".xlsx"
+              onChange={handleImport}
+              hidden
+            />
           </div>
 
           {experts.length === 0 ? (

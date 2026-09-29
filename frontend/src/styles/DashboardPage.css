@@ -460,6 +460,31 @@
   margin-top: 1.5rem;
 }
 
+.expert-import-actions {
+  margin: 1rem 0;
+}
+
+.expert-import-actions .action-btn {
+  flex: 0 1 auto;
+  transition: transform 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.expert-import-actions .action-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #eef1ff;
+  box-shadow: 0 5px 14px rgba(102, 126, 234, 0.2);
+}
+
+.expert-import-actions .action-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.expert-import-actions .action-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .empty-state {
   padding: 1.5rem;
   border: 1px dashed #cbd5e1;

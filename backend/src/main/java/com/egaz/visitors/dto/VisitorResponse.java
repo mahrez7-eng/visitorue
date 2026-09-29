@@ -16,6 +16,7 @@ public record VisitorResponse(
     String purpose,
     String recordedBy,
     LocalDateTime checkInDate,
-    LocalDateTime checkOutDate
+    LocalDateTime checkOutDate,
+    String checkoutReference
 ) {
 }

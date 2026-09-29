@@ -4,6 +4,8 @@ import { useAuth } from '../context/useAuth';
 import { refreshExperts, createVisitor, findVisitorByIdentity } from '../lib/db';
 import '../styles/RegisterVisitorPage.css';
 
+const DEFAULT_COMPANY = 'E-Government of Zanzibar';
+
 export default function RegisterVisitorPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -12,7 +14,7 @@ export default function RegisterVisitorPage() {
     fullName: '',
     email: '',
     phone: '',
-    company: '',
+    company: DEFAULT_COMPANY,
     idType: 'NIDA',
     idNumber: '',
     expertId: '',
@@ -61,7 +63,7 @@ export default function RegisterVisitorPage() {
         fullName: visitor.fullName || prev.fullName || '',
         email: visitor.email || prev.email || '',
         phone: visitor.phone || prev.phone || '',
-        company: visitor.company || prev.company || '',
+        company: DEFAULT_COMPANY,
       }));
       setLookupMessage('Previous visitor details loaded. Confirm them and enter this visit\'s purpose.');
     } catch (err) {
@@ -102,6 +104,7 @@ export default function RegisterVisitorPage() {
       // the current server time when it's not provided.
       await createVisitor({
         ...formData,
+        company: DEFAULT_COMPANY,
         personToVisit: expert ? expert.fullname : '',
         recordedBy: user?.name || '',
       });
@@ -179,8 +182,6 @@ export default function RegisterVisitorPage() {
               <select name="idType" value={formData.idType} onChange={handleChange}>
                 <option value="NIDA">NIDA</option>
                 <option value="Passport">Passport</option>
-                <option value="Voter ID">Voter ID</option>
-                <option value="Driving License">Driving License</option>
                 <option value="Other">Other</option>
               </select>
             </div>
@@ -210,8 +211,7 @@ export default function RegisterVisitorPage() {
                 type="text"
                 name="company"
                 value={formData.company}
-                onChange={handleChange}
-                placeholder="Company name"
+                readOnly
               />
             </div>
           </div>

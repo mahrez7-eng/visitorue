@@ -2,16 +2,18 @@ package com.egaz.visitors.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
+import com.egaz.visitors.dto.CheckoutRequest;
 import com.egaz.visitors.dto.VisitorRequest;
 import com.egaz.visitors.dto.VisitorResponse;
-import com.egaz.visitors.entity.Expert;
 import com.egaz.visitors.entity.Visitor;
 import com.egaz.visitors.repository.ExpertRepository;
 import com.egaz.visitors.repository.VisitorRepository;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -69,7 +71,72 @@ class VisitorServiceTest {
         assertNotNull(response);
         assertEquals("existing-id", response.id());
         assertEquals("Jane Doe", response.fullName());
+        assertEquals("E-Government of Zanzibar", response.company());
         assertEquals("Meeting", response.purpose());
         assertEquals(null, response.checkOutDate());
+    }
+
+    @Test
+    void create_newVisitorUsesFixedCompanyInsteadOfSubmittedCompany() {
+        when(visitorRepository.findFirstByIdNumberIgnoreCaseOrderByCheckInDateDesc("654321"))
+            .thenReturn(Optional.empty());
+        when(visitorRepository.save(any(Visitor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VisitorRequest request = new VisitorRequest(
+            "Alex Visitor",
+            null,
+            "+255700000001",
+            "Another Company",
+            "NIDA",
+            "654321",
+            null,
+            null,
+            "Meeting",
+            "Reception",
+            null
+        );
+
+        VisitorResponse response = visitorService.create(request);
+
+        assertEquals("E-Government of Zanzibar", response.company());
+    }
+
+    @Test
+    void checkoutWithoutReferenceDoesNotAssignSystemAttribution() {
+        Visitor activeVisitor = new Visitor();
+        activeVisitor.setId("v-1");
+        activeVisitor.setFullName("John Smith");
+        activeVisitor.setPhone("+255700111222");
+        activeVisitor.setPurpose("Meeting");
+        activeVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 8, 0));
+
+        when(visitorRepository.findById("v-1")).thenReturn(Optional.of(activeVisitor));
+        when(visitorRepository.save(any(Visitor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        VisitorResponse response = visitorService.checkout("v-1", new CheckoutRequest(null, null));
+
+        assertNotNull(response.checkOutDate());
+        assertNull(response.checkoutReference());
+    }
+
+    @Test
+    void autoCheckoutExpiredVisitorsChecksOutOnlyVisitorsPastThreeHoursFortyMinutes() {
+        LocalDateTime now = LocalDateTime.of(2026, 9, 25, 12, 0);
+        Visitor expiredVisitor = new Visitor();
+        expiredVisitor.setId("expired");
+        expiredVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 8, 0));
+        Visitor recentVisitor = new Visitor();
+        recentVisitor.setId("recent");
+        recentVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 9, 0));
+
+        when(visitorRepository.findByCheckOutDateIsNullOrderByCheckInDateDesc())
+            .thenReturn(List.of(expiredVisitor, recentVisitor));
+        when(visitorRepository.save(any(Visitor.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        visitorService.autoCheckoutExpiredVisitors(now);
+
+        assertEquals(LocalDateTime.of(2026, 9, 25, 11, 40), expiredVisitor.getCheckOutDate());
+        assertEquals("System (automatic after 3h 40m)", expiredVisitor.getCheckoutReference());
+        assertNull(recentVisitor.getCheckOutDate());
     }
 }

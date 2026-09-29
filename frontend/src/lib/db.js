@@ -153,9 +153,10 @@ export async function updateVisitor(id, payload) {
   return updated;
 }
 
-export async function checkoutVisitor(id) {
+export async function checkoutVisitor(id, reference) {
   const updated = await apiRequest(`/visitors/${id}/checkout`, {
     method: 'PATCH',
+    body: JSON.stringify({ reference }),
   });
   return updated;
 }

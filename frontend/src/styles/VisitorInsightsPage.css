@@ -225,6 +225,17 @@
   border-bottom: 1px solid #ececec;
 }
 
+.rhythm-chart-scroll {
+  overflow-x: auto;
+}
+
+.daily-rhythm-chart {
+  display: grid;
+  grid-template-columns: repeat(30, minmax(18px, 1fr));
+  min-width: 660px;
+  gap: 0.35rem;
+}
+
 .weekday-column {
   display: flex;
   flex: 1;
@@ -267,6 +278,10 @@
   color: #333;
   font-size: 0.72rem;
   text-align: center;
+}
+
+.daily-rhythm-chart .bar-fill span {
+  font-size: 0.62rem;
 }
 
 .purpose-list {

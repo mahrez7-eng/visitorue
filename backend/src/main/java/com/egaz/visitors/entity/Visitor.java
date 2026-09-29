@@ -66,4 +66,7 @@ public class Visitor {
 
     @Column(name = "checkOutDate")
     private LocalDateTime checkOutDate;
+
+    @Column(name = "checkoutReference", length = 255)
+    private String checkoutReference;
 }

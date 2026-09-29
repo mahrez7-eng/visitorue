@@ -8,17 +8,23 @@ import com.egaz.visitors.entity.Visitor;
 import com.egaz.visitors.exception.ResourceNotFoundException;
 import com.egaz.visitors.repository.ExpertRepository;
 import com.egaz.visitors.repository.VisitorRepository;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
 @Transactional
 public class VisitorService {
+    private static final Duration AUTO_CHECKOUT_AFTER = Duration.ofMinutes(220);
+    private static final String AUTO_CHECKOUT_REFERENCE = "System (automatic after 3h 40m)";
+    private static final String DEFAULT_VISITOR_COMPANY = "E-Government of Zanzibar";
+
     private final VisitorRepository repository;
     private final ExpertRepository expertRepository;
 
@@ -63,6 +69,7 @@ public class VisitorService {
 
         if (existing != null) {
             apply(existing, request, false);
+            existing.setCompany(DEFAULT_VISITOR_COMPANY);
             existing.setCheckInDate(LocalDateTime.now());
             existing.setCheckOutDate(null);
             return toResponse(repository.save(existing));
@@ -71,6 +78,7 @@ public class VisitorService {
         Visitor v = new Visitor();
         v.setId(UUID.randomUUID().toString());
         apply(v, request, true);
+        v.setCompany(DEFAULT_VISITOR_COMPANY);
         return toResponse(repository.save(v));
     }
 
@@ -90,7 +98,28 @@ public class VisitorService {
         if (checkout.isBefore(v.getCheckInDate()))
             throw new IllegalArgumentException("checkOutDate cannot be before checkInDate");
         v.setCheckOutDate(checkout);
+        v.setCheckoutReference(resolveCheckoutReference(request));
         return toResponse(repository.save(v));
+    }
+
+    @Scheduled(cron = "0 * * * * *")
+    public void autoCheckoutExpiredVisitors() {
+        autoCheckoutExpiredVisitors(LocalDateTime.now());
+    }
+
+    void autoCheckoutExpiredVisitors(LocalDateTime now) {
+        LocalDateTime cutoff = now.minus(AUTO_CHECKOUT_AFTER);
+        List<Visitor> activeVisitors = repository.findByCheckOutDateIsNullOrderByCheckInDateDesc();
+
+        for (Visitor visitor : activeVisitors) {
+            LocalDateTime checkIn = visitor.getCheckInDate();
+            if (checkIn == null || checkIn.isAfter(cutoff)) {
+                continue;
+            }
+            visitor.setCheckOutDate(checkIn.plus(AUTO_CHECKOUT_AFTER));
+            visitor.setCheckoutReference(AUTO_CHECKOUT_REFERENCE);
+            repository.save(visitor);
+        }
     }
 
     public void delete(String id) { repository.delete(get(id)); }
@@ -127,10 +156,14 @@ public class VisitorService {
     private String clean(String s) { return s == null || s.trim().isEmpty() ? null : s.trim(); }
     private boolean blank(String s) { return s == null || s.trim().isEmpty(); }
 
+    private String resolveCheckoutReference(CheckoutRequest request) {
+        return request == null ? null : clean(request.reference());
+    }
+
     private VisitorResponse toResponse(Visitor v) {
         Expert e = v.getExpert();
         return new VisitorResponse(v.getId(), v.getFullName(), v.getEmail(), v.getPhone(), v.getCompany(),
             v.getIdType(), v.getIdNumber(), e != null ? e.getId() : null, e != null ? e.getFullname() : null,
-            v.getPersonToVisit(), v.getPurpose(), v.getRecordedBy(), v.getCheckInDate(), v.getCheckOutDate());
+            v.getPersonToVisit(), v.getPurpose(), v.getRecordedBy(), v.getCheckInDate(), v.getCheckOutDate(), v.getCheckoutReference());
     }
 }

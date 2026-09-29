@@ -267,6 +267,12 @@ export default function VisitorsPage() {
                       <span className="value">{formatDateTime(visitor.checkOutDate)}</span>
                     </div>
                   )}
+                  {visitor.checkoutReference && (
+                    <div className="detail-row">
+                      <span className="label">Checkout by:</span>
+                      <span className="value">{visitor.checkoutReference}</span>
+                    </div>
+                  )}
 
                   <div className="visitor-actions">
                     {!visitor.checkOutDate && (
