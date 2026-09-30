@@ -22,7 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class VisitorService {
     private static final Duration AUTO_CHECKOUT_AFTER = Duration.ofMinutes(220);
-    private static final String AUTO_CHECKOUT_REFERENCE = "System (automatic after 3h 40m)";
+    private static final String AUTO_CHECKOUT_REFERENCE = "System help you to checkout the visitor";
     private static final String DEFAULT_VISITOR_COMPANY = "E-Government of Zanzibar";
 
     private final VisitorRepository repository;

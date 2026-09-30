@@ -161,19 +161,19 @@
 }
 
 .success-message h2 {
-  color: #28a745;
+  color: #ffffff;
   font-size: 1.8rem;
   margin-bottom: 0.5rem;
 }
 
 .success-message p {
-  color: #666;
+  color: #ffffff;
   font-size: 1rem;
   margin-bottom: 0.5rem;
 }
 
 .redirect-text {
-  color: #999;
+  color: #fffdfd;
   font-size: 0.9rem;
   font-style: italic;
 }
