@@ -109,7 +109,6 @@ export default function VisitorInsightsPage() {
           <p>Understand traffic patterns and keep the reception desk moving.</p>
         </div>
         <div className="insights-actions">
-          <label htmlFor="insights-period">View period</label>
           <select id="insights-period" value={period} onChange={(event) => setPeriod(event.target.value)}>
             {PERIODS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
           </select>
