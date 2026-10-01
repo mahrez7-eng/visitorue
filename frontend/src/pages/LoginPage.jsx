@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import '../styles/LoginPage.css';
-import logo from '../assets/EGAZ.jpeg';
+import logo from '../assets/logo.png';
 import recep from '../assets/recep.png';
 
 export default function LoginPage() {
