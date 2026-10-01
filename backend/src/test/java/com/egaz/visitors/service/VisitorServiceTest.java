@@ -120,23 +120,40 @@ class VisitorServiceTest {
     }
 
     @Test
-    void autoCheckoutExpiredVisitorsChecksOutOnlyVisitorsPastThreeHoursFortyMinutes() {
-        LocalDateTime now = LocalDateTime.of(2026, 9, 25, 12, 0);
-        Visitor expiredVisitor = new Visitor();
-        expiredVisitor.setId("expired");
-        expiredVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 8, 0));
-        Visitor recentVisitor = new Visitor();
-        recentVisitor.setId("recent");
-        recentVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 9, 0));
+    void autoCheckoutVisitorsAt430PmRegardlessOfCheckInTime() {
+        LocalDateTime now = LocalDateTime.of(2026, 9, 25, 16, 30);
+        Visitor morningVisitor = new Visitor();
+        morningVisitor.setId("morning");
+        morningVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 8, 0));
+        Visitor afternoonVisitor = new Visitor();
+        afternoonVisitor.setId("afternoon");
+        afternoonVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 16, 20));
 
         when(visitorRepository.findByCheckOutDateIsNullOrderByCheckInDateDesc())
-            .thenReturn(List.of(expiredVisitor, recentVisitor));
+            .thenReturn(List.of(morningVisitor, afternoonVisitor));
         when(visitorRepository.save(any(Visitor.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
         visitorService.autoCheckoutExpiredVisitors(now);
 
-        assertEquals(LocalDateTime.of(2026, 9, 25, 11, 40), expiredVisitor.getCheckOutDate());
-        assertEquals("System (automatic after 3h 40m)", expiredVisitor.getCheckoutReference());
-        assertNull(recentVisitor.getCheckOutDate());
+        LocalDateTime expectedCheckout = LocalDateTime.of(2026, 9, 25, 16, 30);
+        assertEquals(expectedCheckout, morningVisitor.getCheckOutDate());
+        assertEquals(expectedCheckout, afternoonVisitor.getCheckOutDate());
+        assertEquals("System help you to checkout the visitor", morningVisitor.getCheckoutReference());
+        assertEquals("System help you to checkout the visitor", afternoonVisitor.getCheckoutReference());
+    }
+
+    @Test
+    void autoCheckoutDoesNotCloseVisitorsBefore430Pm() {
+        LocalDateTime now = LocalDateTime.of(2026, 9, 25, 16, 29);
+        Visitor activeVisitor = new Visitor();
+        activeVisitor.setId("active");
+        activeVisitor.setCheckInDate(LocalDateTime.of(2026, 9, 25, 8, 0));
+
+        when(visitorRepository.findByCheckOutDateIsNullOrderByCheckInDateDesc())
+            .thenReturn(List.of(activeVisitor));
+
+        visitorService.autoCheckoutExpiredVisitors(now);
+
+        assertNull(activeVisitor.getCheckOutDate());
     }
 }

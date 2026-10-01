@@ -8,10 +8,10 @@ import com.egaz.visitors.entity.Visitor;
 import com.egaz.visitors.exception.ResourceNotFoundException;
 import com.egaz.visitors.repository.ExpertRepository;
 import com.egaz.visitors.repository.VisitorRepository;
-import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,7 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 @Transactional
 public class VisitorService {
-    private static final Duration AUTO_CHECKOUT_AFTER = Duration.ofMinutes(220);
+    private static final LocalTime AUTO_CHECKOUT_TIME = LocalTime.of(16, 30);
+    private static final ZoneId ZANZIBAR_ZONE = ZoneId.of("Africa/Dar_es_Salaam");
     private static final String AUTO_CHECKOUT_REFERENCE = "System help you to checkout the visitor";
     private static final String DEFAULT_VISITOR_COMPANY = "E-Government of Zanzibar";
 
@@ -102,21 +103,24 @@ public class VisitorService {
         return toResponse(repository.save(v));
     }
 
-    @Scheduled(cron = "0 * * * * *")
+    @Scheduled(cron = "0 * * * * *", zone = "Africa/Dar_es_Salaam")
     public void autoCheckoutExpiredVisitors() {
-        autoCheckoutExpiredVisitors(LocalDateTime.now());
+        autoCheckoutExpiredVisitors(LocalDateTime.now(ZANZIBAR_ZONE));
     }
 
     void autoCheckoutExpiredVisitors(LocalDateTime now) {
-        LocalDateTime cutoff = now.minus(AUTO_CHECKOUT_AFTER);
         List<Visitor> activeVisitors = repository.findByCheckOutDateIsNullOrderByCheckInDateDesc();
 
         for (Visitor visitor : activeVisitors) {
             LocalDateTime checkIn = visitor.getCheckInDate();
-            if (checkIn == null || checkIn.isAfter(cutoff)) {
+            if (checkIn == null) {
                 continue;
             }
-            visitor.setCheckOutDate(checkIn.plus(AUTO_CHECKOUT_AFTER));
+            LocalDateTime cutoff = checkIn.toLocalDate().atTime(AUTO_CHECKOUT_TIME);
+            if (cutoff.isAfter(now)) {
+                continue;
+            }
+            visitor.setCheckOutDate(cutoff.isBefore(checkIn) ? checkIn : cutoff);
             visitor.setCheckoutReference(AUTO_CHECKOUT_REFERENCE);
             repository.save(visitor);
         }

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/useAuth';
 import { refreshVisitors } from '../lib/db';
+import useIdleRefresh from '../hooks/useIdleRefresh';
 import '../styles/DashboardPage.css';
 
 export default function DashboardPage({ role }) {
@@ -22,25 +23,30 @@ export default function DashboardPage({ role }) {
     return new Date(/(?:Z|[+-]\d{2}:?\d{2})$/.test(text) ? text : `${text.replace(' ', 'T')}+03:00`);
   };
 
-  useEffect(() => {
-    refreshVisitors().then((savedVisitors) => {
-      setVisitors(savedVisitors);
+  const loadDashboard = async () => {
+    const savedVisitors = await refreshVisitors();
+    setVisitors(savedVisitors);
 
-      const today = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Africa/Dar_es_Salaam',
-      }).format(new Date());
-      const todayVisitors = savedVisitors.filter(v =>
-        new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Dar_es_Salaam' }).format(parseDateTime(v.checkInDate)) === today
-      );
-      const activeVisitors = savedVisitors.filter(v => !v.checkOutDate);
+    const today = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Africa/Dar_es_Salaam',
+    }).format(new Date());
+    const todayVisitors = savedVisitors.filter(v =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Dar_es_Salaam' }).format(parseDateTime(v.checkInDate)) === today
+    );
+    const activeVisitors = savedVisitors.filter(v => !v.checkOutDate);
 
-      setStats({
-        totalVisitors: savedVisitors.length,
-        todayVisitors: todayVisitors.length,
-        activeVisitors: activeVisitors.length
-      });
+    setStats({
+      totalVisitors: savedVisitors.length,
+      todayVisitors: todayVisitors.length,
+      activeVisitors: activeVisitors.length
     });
+  };
+
+  useEffect(() => {
+    loadDashboard();
   }, []);
+
+  useIdleRefresh(loadDashboard);
 
   const formatDateTime = (dateString) => {
     const date = parseDateTime(dateString);

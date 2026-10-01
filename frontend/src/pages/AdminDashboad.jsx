@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { refreshVisitors, refreshUsers, refreshExperts } from '../lib/db';
+import useIdleRefresh from '../hooks/useIdleRefresh';
 import '../styles/DashboardPage.css';
 
 function parseDateTime(value) {
@@ -22,11 +23,22 @@ export default function AdminDashboad() {
   const [users, setUsers] = useState([]);
   const [experts, setExperts] = useState([]);
 
+  const loadDashboard = async () => {
+    const [latestVisitors, latestUsers, latestExperts] = await Promise.all([
+      refreshVisitors(),
+      refreshUsers(),
+      refreshExperts(),
+    ]);
+    setVisitors(latestVisitors);
+    setUsers(latestUsers);
+    setExperts(latestExperts);
+  };
+
   useEffect(() => {
-    refreshVisitors().then(setVisitors);
-    refreshUsers().then(setUsers);
-    refreshExperts().then(setExperts);
+    loadDashboard();
   }, []);
+
+  useIdleRefresh(loadDashboard);
 
   const receptionistCount = users.filter((u) => u.role === 'receptionist').length;
   const activeNow = visitors.filter((v) => !v.checkOutDate).length;

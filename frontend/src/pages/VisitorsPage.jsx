@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { refreshVisitors, checkoutVisitor, deleteVisitor } from '../lib/db';
+import useIdleRefresh from '../hooks/useIdleRefresh';
 import '../styles/VisitorsPage.css';
 
 const WORK_WEEK = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
@@ -80,9 +81,19 @@ export default function VisitorsPage() {
     });
   })();
 
+  const loadVisitors = async () => {
+    const latestVisitors = await refreshVisitors();
+    setVisitors(latestVisitors);
+    setSelectedVisitor((selected) => selected
+      ? latestVisitors.find((visitor) => visitor.id === selected.id) || null
+      : null);
+  };
+
   useEffect(() => {
-    refreshVisitors().then(setVisitors);
+    loadVisitors();
   }, []);
+
+  useIdleRefresh(loadVisitors);
 
   const handleCheckOut = async (id) => {
     setError('');
