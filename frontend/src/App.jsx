@@ -11,6 +11,7 @@ import AdminReports from './pages/AdminReports'
 import VisitorsPage from './pages/VisitorsPage'
 import RegisterVisitorPage from './pages/RegisterVisitorPage'
 import VisitorInsightsPage from './pages/VisitorInsightsPage'
+import Home from './pages/Home'
 import './App.css'
 
 function AppContent() {
@@ -18,7 +19,7 @@ function AppContent() {
     <AuthProvider>
       <Navbar />
         <Routes>
-          <Route path="/" element={<Navigate to="/login" replace />} />
+          <Route path="/" element={<Home />} />
           <Route path="/login" element={<LoginPage />} />
 
           <Route
